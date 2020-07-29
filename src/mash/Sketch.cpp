@@ -30,6 +30,7 @@
 #define CHUNK 16384
 KSEQ_INIT(gzFile, gzread)
 
+#include "mash/logs.h"
 using namespace std;
 
 typedef map < Sketch::hash_t, vector<Sketch::PositionHash> > LociByHash_map;
@@ -508,6 +509,7 @@ void Sketch::createIndex()
 
 void addMinHashes(MinHashHeap & minHashHeap, char * seq, uint64_t length, const Sketch::Parameters & parameters)
 {
+    printParameters(parameters);
     int kmerSize = parameters.kmerSize;
     uint64_t mins = parameters.minHashesPerWindow;
     bool noncanonical = parameters.noncanonical;
@@ -1128,7 +1130,9 @@ Sketch::SketchOutput * sketchFile(Sketch::SketchInput * input)
 	
 	output->references.resize(1);
 	Sketch::Reference & reference = output->references[0];
-	
+
+    printParameters(input->parameters);
+
     MinHashHeap minHashHeap(parameters.use64, parameters.minHashesPerWindow, parameters.reads ? parameters.minCov : 1, parameters.memoryBound);
 
 	reference.length = 0;
@@ -1139,6 +1143,10 @@ Sketch::SketchOutput * sketchFile(Sketch::SketchInput * input)
 	bool skipped = false;
 	
 	int fileCount = input->fileNames.size();
+    for (int i = 0; i < fileCount; ++i)
+        cout << "fileNames[" << i << "]: " << input->fileNames[i] << "\n";
+    
+
 	gzFile fps[fileCount];
 	list<kseq_t *> kseqs;
 	//
@@ -1156,7 +1164,7 @@ Sketch::SketchOutput * sketchFile(Sketch::SketchInput * input)
 		}
 		else
 		{
-			if ( reference.name == "" && input->fileNames[f] != "-" )
+			if ( reference.name == "")
 			{
 				reference.name = input->fileNames[f];
 			}
@@ -1169,15 +1177,30 @@ Sketch::SketchOutput * sketchFile(Sketch::SketchInput * input)
 				exit(1);
 			}
 		}
-		
-		kseqs.push_back(kseq_init(fps[f]));
+		cout << "\nkseq_init {\n";
+		kseqs.push_back(kseq_init(fps[f])); // alloca memoria
+        cout << "}\n";
 	}
-	
+
+    // output vuoto (crasha)
+    /*cout << "\nkseq_t {\n";
+    for (list<kseq_t*>::iterator it = kseqs.begin(); it != kseqs.end(); ++it)
+        printKSeq(*it);
+    cout << "}\n";*/
+
 	list<kseq_t *>::iterator it = kseqs.begin();
 	
+    cout << "\n";
+
 	while ( kseqs.begin() != kseqs.end() )
 	{
+        cout << "\n";
+
+        printKSeq(*it);
+
 		l = kseq_read(*it);
+        cout << "l: " << l << "\n";
+
 		
 		if ( l < -1 ) // error
 		{
@@ -1192,11 +1215,13 @@ Sketch::SketchOutput * sketchFile(Sketch::SketchInput * input)
 			{
 				it = kseqs.begin();
 			}
+            cout << "restart iterator\n";
 			continue;
 		}
 		
 		if ( l < parameters.kmerSize )
 		{
+            cout << "l < kmerSize (" << parameters.kmerSize << "): skipped = true\n";
 			skipped = true;
 			continue;
 		}
@@ -1214,9 +1239,13 @@ Sketch::SketchOutput * sketchFile(Sketch::SketchInput * input)
 				reference.comment.append(" ");
 				reference.comment.append((*it)->comment.s ? (*it)->comment.s : "");
 			}
+            cout << "naming (since count = 0)\n";
+            cout << "refName : " << reference.name << "\n";
+            cout << "refComment : " << reference.comment << "\n";
 		}
 		
 		count++;
+        cout << "count++   ==> " << count << "\n";
 		
 		
 		//if ( verbosity > 0 && parameters.windowed ) cout << '>' << seq->name.s << " (" << l << "nt)" << endl << endl;
@@ -1227,13 +1256,20 @@ Sketch::SketchOutput * sketchFile(Sketch::SketchInput * input)
 		if ( ! parameters.reads )
 		{
 			reference.length += l;
+            cout << "not parameters.reads  ==> refLength = " << reference.length << " (added " << l << ")\n";
 		}
 		
+        //cout << "\nOUTPUT\n---\n";
+        //cout << (*it)->seq.s;
+        //cout << "\n---\nOUTPUT\n";
+        cout << "addMinHashes {\n";
 		addMinHashes(minHashHeap, (*it)->seq.s, l, parameters);
+        cout << "}\n";
 		
 		if ( parameters.reads && parameters.targetCov > 0 && minHashHeap.estimateMultiplicity() >= parameters.targetCov )
 		{
 			l = -1; // success code
+            cout << "y\n";
 			break;
 		}
 		

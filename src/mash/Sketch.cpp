@@ -509,10 +509,13 @@ void Sketch::createIndex()
 
 void addMinHashes(MinHashHeap & minHashHeap, char * seq, uint64_t length, const Sketch::Parameters & parameters)
 {
-    printParameters(parameters);
     int kmerSize = parameters.kmerSize;
     uint64_t mins = parameters.minHashesPerWindow;
     bool noncanonical = parameters.noncanonical;
+
+    cout << "kmerSize: " << kmerSize << "\n";
+    cout << "mins: " << mins << "\n";
+    cout << "noncanonical: " << noncanonical << "\n";
     
     // Determine the 'mins' smallest hashes, including those already provided
     // (potentially replacing them). This allows min-hash sets across multiple
@@ -532,18 +535,24 @@ void addMinHashes(MinHashHeap & minHashHeap, char * seq, uint64_t length, const 
     
     if ( ! noncanonical )
     {
+        cout << "noncanonical is FALSE\n";
     	seqRev = new char[length];
         reverseComplement(seq, seqRev, length);
+        cout << "seq   : \"" << seq << "\"\n";
+        cout << "seqRev: \"" << seqRev << "\"\n";
     }
     
     uint64_t j = 0;
-    
+
     for ( uint64_t i = 0; i < length - kmerSize + 1; i++ )
     {
 		// repeatedly skip kmers with bad characters
 		//
 		bool bad = false;
 		//
+
+        // BEGIN: Controlla l'alfabeto
+
 		for ( ; j < i + kmerSize && i + kmerSize <= length; j++ )
 		{
 			if ( ! parameters.alphabet[seq[j]] )
@@ -553,24 +562,27 @@ void addMinHashes(MinHashHeap & minHashHeap, char * seq, uint64_t length, const 
 				break;
 			}
 		}
-		//
 		if ( bad )
-		{
 			continue;
-		}
-		//	
 		if ( i + kmerSize > length )
-		{
-			// skipped to end
-			break;
-		}
+			break; // skipped to end
+
+        // END: Controlla l'alfabeto
             
         const char *kmer_fwd = seq + i;
         const char *kmer_rev = seqRev + length - i - kmerSize;
         const char * kmer = (noncanonical || memcmp(kmer_fwd, kmer_rev, kmerSize) <= 0) ? kmer_fwd : kmer_rev;
-        bool filter = false;
+
+        //cout << "\ni = " << i << "\n";
+        //cout << "kmerfwd: " << kmer_fwd << "\n";
+        //cout << "kmerrev: " << kmer_rev << "\n";
+        cout << "\nkmer   : ";
+        for (int k = 0; k < kmerSize; ++k)
+            cout << kmer[k];
+        cout << "\n";
         
         hash_u hash = getHash(kmer, kmerSize, parameters.seed, parameters.use64);
+        cout << "hash 64: " << hash.hash64 << "\n";
         
 		minHashHeap.tryInsert(hash);
     }
@@ -1143,13 +1155,14 @@ Sketch::SketchOutput * sketchFile(Sketch::SketchInput * input)
 	bool skipped = false;
 	
 	int fileCount = input->fileNames.size();
+    cout << "\n";
     for (int i = 0; i < fileCount; ++i)
         cout << "fileNames[" << i << "]: " << input->fileNames[i] << "\n";
     
 
 	gzFile fps[fileCount];
 	list<kseq_t *> kseqs;
-	//
+
 	for ( int f = 0; f < fileCount; f++ )
 	{
 		if ( input->fileNames[f] == "-" )
@@ -1177,9 +1190,7 @@ Sketch::SketchOutput * sketchFile(Sketch::SketchInput * input)
 				exit(1);
 			}
 		}
-		cout << "\nkseq_init {\n";
-		kseqs.push_back(kseq_init(fps[f])); // alloca memoria
-        cout << "}\n";
+		kseqs.push_back(kseq_init(fps[f]));
 	}
 
     // output vuoto (crasha)
@@ -1194,11 +1205,11 @@ Sketch::SketchOutput * sketchFile(Sketch::SketchInput * input)
 
 	while ( kseqs.begin() != kseqs.end() )
 	{
+        // un iterazione per ogni file
         cout << "\n";
 
-        printKSeq(*it);
-
 		l = kseq_read(*it);
+        //printKSeq(*it);
         cout << "l: " << l << "\n";
 
 		
@@ -1207,34 +1218,34 @@ Sketch::SketchOutput * sketchFile(Sketch::SketchInput * input)
 			break;
 		}
 		
-		if ( l == -1 ) // eof
+		if ( l == -1 ) // eof (end of files in realtà)
 		{
 			kseq_destroy(*it);
 			it = kseqs.erase(it);
 			if ( it == kseqs.end() )
-			{
 				it = kseqs.begin();
-			}
-            cout << "restart iterator\n";
 			continue;
 		}
 		
 		if ( l < parameters.kmerSize )
 		{
-            cout << "l < kmerSize (" << parameters.kmerSize << "): skipped = true\n";
 			skipped = true;
+			cout << "l < kmerSize (skipped)\n";
 			continue;
 		}
 		
 		if ( count == 0 )
 		{
+            // assegnazione refName e refComment
 			if ( input->fileNames[0] == "-" )
 			{
+                // se viene da stdin allora assegna nome e commento
 				reference.name = (*it)->name.s;
 				reference.comment = (*it)->comment.s ? (*it)->comment.s : "";
 			}
 			else
 			{
+                // se viene da file allora assegna commento
 				reference.comment = (*it)->name.s;
 				reference.comment.append(" ");
 				reference.comment.append((*it)->comment.s ? (*it)->comment.s : "");
@@ -1253,15 +1264,12 @@ Sketch::SketchOutput * sketchFile(Sketch::SketchInput * input)
 		//printf("seq: %s\n", seq->seq.s);
 		//if (seq->qual.l) printf("qual: %s\n", seq->qual.s);
 		
-		if ( ! parameters.reads )
+		if ( ! parameters.reads ) // files da leggere rimasti
 		{
-			reference.length += l;
-            cout << "not parameters.reads  ==> refLength = " << reference.length << " (added " << l << ")\n";
+			reference.length += l; // incremento il numero di caratteri complessivi letti
+            cout << "parameters.reads = FALSE ==> refLength = " << reference.length << " (added " << l << ")\n";
 		}
 		
-        //cout << "\nOUTPUT\n---\n";
-        //cout << (*it)->seq.s;
-        //cout << "\n---\nOUTPUT\n";
         cout << "addMinHashes {\n";
 		addMinHashes(minHashHeap, (*it)->seq.s, l, parameters);
         cout << "}\n";

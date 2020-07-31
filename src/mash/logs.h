@@ -30,6 +30,8 @@ void printReference(Sketch::Reference& rr) {
 
 
 void printKSeq(kseq_t* kseq) {
+    cout << "kseq value:\n";
+    cout << kseq->seq.s << "\n";
     //cout << " name: " << kseq->name.s << "\n";
     //cout << " comment: " << kseq->comment.s << "\n";
 }

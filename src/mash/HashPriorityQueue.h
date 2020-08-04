@@ -13,16 +13,16 @@
 class HashPriorityQueue
 {
 public:
-	
+
 	HashPriorityQueue(bool use64New) : use64(use64New) {}
 	void clear();
-	void pop() {use64 ? queue64.pop() : queue32.pop();}
-	void push(hash_u hash) {use64 ? queue64.push(hash.hash64) : queue32.push(hash.hash32);}
-	int size() const {return use64 ? queue64.size() : queue32.size();}
+	void pop()				{ use64 ? queue64.pop() : queue32.pop(); }
+	void push(hash_u hash)	{ use64 ? queue64.push(hash.hash64) : queue32.push(hash.hash32); }
+	int size() const		{ return use64 ? queue64.size() : queue32.size(); }
 	hash_u top() const;
-	
+
 private:
-    
+
 	bool use64;
 	std::priority_queue<hash32_t> queue32;
 	std::priority_queue<hash64_t> queue64;

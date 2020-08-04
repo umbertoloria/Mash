@@ -18,7 +18,7 @@ MinHashHeap::MinHashHeap(bool use64New, uint64_t cardinalityMaximumNew, uint64_t
 	
 	if ( memoryBoundBytes == 0 )
 	{
-		bloomFilter = 0;
+		bloomFilter = nullptr;
 	}
 	else
 	{
@@ -32,21 +32,14 @@ MinHashHeap::MinHashHeap(bool use64New, uint64_t cardinalityMaximumNew, uint64_t
 		kmersTotal = 0;
 		kmersUsed = 0;
 		
-		//if ( i == 0 && verbosity > 0 )
-		{
-			//cerr << "   Bloom table size (bytes): " << bloomParams.optimal_parameters.table_size / 8 << endl;
-		}
-		
 		bloomFilter = new bloom_filter(bloomParams);
 	}
 }
 
 MinHashHeap::~MinHashHeap()
 {
-	if ( bloomFilter != 0 )
-	{
+	if ( bloomFilter != nullptr )
 		delete bloomFilter;
-	}
 }
 
 void MinHashHeap::computeStats()
@@ -68,7 +61,7 @@ void MinHashHeap::clear()
 	hashesPending.clear();
 	hashesQueuePending.clear();
 	
-	if ( bloomFilter != 0 )
+	if ( bloomFilter != nullptr )
 	{
 		bloomFilter->clear();
 	}
@@ -78,80 +71,74 @@ void MinHashHeap::clear()
 
 void MinHashHeap::tryInsert(hash_u hash)
 {
-	if
-	(
-		hashes.size() < cardinalityMaximum ||
-		hashLessThan(hash, hashesQueue.top(), use64)
-	)
+	cout << "> tryInsert: " << (use64 ? hash.hash64 : hash.hash32) << "\n";
+
+	if (hashes.size() >= cardinalityMaximum && !hashLessThan(hash, hashesQueue.top(), use64))
+		return;
+
+	if ( hashes.count(hash) == 0 )
 	{
-		if ( hashes.count(hash) == 0 )
+		cout << "  not present\n";
+		if ( bloomFilter != nullptr )
 		{
-			if ( bloomFilter != 0 )
+			const unsigned char * data = use64 ? (const unsigned char *)&hash.hash64 : (const unsigned char *)&hash.hash32;
+			size_t length = use64 ? 8 : 4;
+
+			if ( bloomFilter->contains(data, length) )
 			{
-                const unsigned char * data = use64 ? (const unsigned char *)&hash.hash64 : (const unsigned char *)&hash.hash32;
-            	size_t length = use64 ? 8 : 4;
-            	
-                if ( bloomFilter->contains(data, length) )
-                {
-					hashes.insert(hash, 2);
-					hashesQueue.push(hash);
-					multiplicitySum += 2;
-	                kmersUsed++;
-                }
-            	else
-            	{
-	                bloomFilter->insert(data, length);
-	                kmersTotal++;
-	            }
-			}
-			else if ( multiplicityMinimum == 1 || hashesPending.count(hash) == multiplicityMinimum - 1 )
-			{
-				hashes.insert(hash, multiplicityMinimum);
+				hashes.insert(hash, 2);
 				hashesQueue.push(hash);
-				multiplicitySum += multiplicityMinimum;
-				
-				if ( multiplicityMinimum > 1 )
-				{
-					// just remove from set for now; will be removed from
-					// priority queue when it's on top
-					//
-					hashesPending.erase(hash);
-				}
+				multiplicitySum += 2;
+				kmersUsed++;
 			}
 			else
 			{
-				if ( hashesPending.count(hash) == 0 )
-				{
-					hashesQueuePending.push(hash);
-				}
-			
-				hashesPending.insert(hash, 1);
+				bloomFilter->insert(data, length);
+				kmersTotal++;
+			}
+		}
+		else if ( multiplicityMinimum == 1 || hashesPending.count(hash) == multiplicityMinimum - 1 )
+		{
+			cout << "  inserting\n";
+			hashes.insert(hash, multiplicityMinimum);
+			hashesQueue.push(hash);
+			multiplicitySum += multiplicityMinimum;
+
+			if ( multiplicityMinimum > 1 )
+			{
+				// just remove from set for now; will be removed from
+				// priority queue when it's on top
+				hashesPending.erase(hash);
 			}
 		}
 		else
 		{
-			hashes.insert(hash, 1);
-			multiplicitySum++;
-		}
-		
-		if ( hashes.size() > cardinalityMaximum )
-		{
-			multiplicitySum -= hashes.count(hashesQueue.top());
-			hashes.erase(hashesQueue.top());
-			
-			// loop since there could be zombie hashes (gone from hashesPending)
-			//
-			while ( hashesQueuePending.size() > 0 && hashLessThan(hashesQueue.top(), hashesQueuePending.top(), use64) )
-			{
-				if ( hashesPending.count(hashesQueuePending.top()) )
-				{
-					hashesPending.erase(hashesQueuePending.top());
-				}
-				
-				hashesQueuePending.pop();
-			}
-			
-			hashesQueue.pop();
+			cout << "  pending\n";
+			if ( hashesPending.count(hash) == 0 )
+				hashesQueuePending.push(hash);
+			hashesPending.insert(hash, 1);
 		}
 	}
+	else
+	{
+		hashes.insert(hash, 1);
+		multiplicitySum++;
+	}
+
+	if ( hashes.size() > cardinalityMaximum )
+	{
+		multiplicitySum -= hashes.count(hashesQueue.top());
+		hashes.erase(hashesQueue.top());
+
+		// loop since there could be zombie hashes (gone from hashesPending)
+		while ( hashesQueuePending.size() > 0 && hashLessThan(hashesQueue.top(), hashesQueuePending.top(), use64) )
+		{
+			if ( hashesPending.count(hashesQueuePending.top()) )
+				hashesPending.erase(hashesQueuePending.top());
+			hashesQueuePending.pop();
+		}
+
+		hashesQueue.pop();
+	}
+
 }

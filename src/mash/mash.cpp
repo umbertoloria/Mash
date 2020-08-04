@@ -14,9 +14,12 @@
 #include "CommandContain.h"
 #include "CommandInfo.h"
 #include "CommandPaste.h"
+#include "mainmain.cpp"
 
 int main(int argc, const char ** argv)
 {
+    if (true)
+        return mainmain(argc, argv);
     mash::CommandList commandList("mash");
     
     commandList.addCommand(new mash::CommandSketch());

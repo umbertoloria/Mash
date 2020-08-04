@@ -11,37 +11,25 @@ uint32_t HashSet::count(hash_u hash) const
 	if ( use64 )
 	{
 		if ( hashes64.count(hash.hash64) )
-		{
 			return hashes64.at(hash.hash64);
-		}
 		else
-		{
 			return 0;
-		}
 	}
 	else
 	{
 		if ( hashes32.count(hash.hash32) )
-		{
 			return hashes32.at(hash.hash32);
-		}
 		else
-		{
 			return 0;
-		}
 	}
 }
 
 void HashSet::erase(hash_u hash)
 {
     if ( use64 )
-    {
         hashes64.erase(hash.hash64);
-    }
     else
-    {
         hashes32.erase(hash.hash32);
-    }
 }
 
 void HashSet::insert(hash_u hash, uint32_t count)
@@ -49,28 +37,18 @@ void HashSet::insert(hash_u hash, uint32_t count)
     if ( use64 )
     {
     	hash64_t hash64 = hash.hash64;
-    	
     	if ( hashes64.count(hash64) )
-    	{
     		hashes64[hash64] = hashes64.at(hash64) + count;
-    	}
     	else
-    	{
 	        hashes64[hash64] = count;
-	    }
     }
     else
     {
     	hash32_t hash32 = hash.hash32;
-    	
     	if ( hashes32.count(hash32) )
-    	{
     		hashes32[hash32] = hashes32.at(hash32) + count;
-    	}
     	else
-    	{
 	        hashes32[hash32] = count;
-	    }
     }
 }
 

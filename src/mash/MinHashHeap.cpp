@@ -71,14 +71,14 @@ void MinHashHeap::clear()
 
 void MinHashHeap::tryInsert(hash_u hash)
 {
-	cout << "> tryInsert: " << (use64 ? hash.hash64 : hash.hash32) << "\n";
+	//cout << "> tryInsert: " << (use64 ? hash.hash64 : hash.hash32) << "\n";
 
 	if (hashes.size() >= cardinalityMaximum && !hashLessThan(hash, hashesQueue.top(), use64))
 		return;
 
 	if ( hashes.count(hash) == 0 )
 	{
-		cout << "  not present\n";
+		//cout << "  not present\n";
 		if ( bloomFilter != nullptr )
 		{
 			const unsigned char * data = use64 ? (const unsigned char *)&hash.hash64 : (const unsigned char *)&hash.hash32;
@@ -99,7 +99,7 @@ void MinHashHeap::tryInsert(hash_u hash)
 		}
 		else if ( multiplicityMinimum == 1 || hashesPending.count(hash) == multiplicityMinimum - 1 )
 		{
-			cout << "  inserting\n";
+			//cout << "  inserting\n";
 			hashes.insert(hash, multiplicityMinimum);
 			hashesQueue.push(hash);
 			multiplicitySum += multiplicityMinimum;
@@ -113,7 +113,7 @@ void MinHashHeap::tryInsert(hash_u hash)
 		}
 		else
 		{
-			cout << "  pending\n";
+			//cout << "  pending\n";
 			if ( hashesPending.count(hash) == 0 )
 				hashesQueuePending.push(hash);
 			hashesPending.insert(hash, 1);

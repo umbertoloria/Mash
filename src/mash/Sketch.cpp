@@ -25,6 +25,7 @@
 #include <math.h>
 #include <list>
 #include <string.h>
+#include "call_factorizations.h"
 
 #define SET_BINARY_MODE(file)
 #define CHUNK 16384
@@ -513,9 +514,9 @@ void addMinHashes(MinHashHeap & minHashHeap, char * seq, uint64_t length, const 
     uint64_t mins = parameters.minHashesPerWindow;
     bool noncanonical = parameters.noncanonical;
 
-    cout << "kmerSize: " << kmerSize << "\n";
+    /*cout << "kmerSize: " << kmerSize << "\n";
     cout << "mins: " << mins << "\n";
-    cout << "noncanonical: " << noncanonical << "\n";
+    cout << "noncanonical: " << noncanonical << "\n";*/
     
     // Determine the 'mins' smallest hashes, including those already provided
     // (potentially replacing them). This allows min-hash sets across multiple
@@ -535,11 +536,11 @@ void addMinHashes(MinHashHeap & minHashHeap, char * seq, uint64_t length, const 
     
     if ( ! noncanonical )
     {
-        cout << "noncanonical is FALSE\n";
+        //cout << "noncanonical is FALSE\n";
     	seqRev = new char[length];
         reverseComplement(seq, seqRev, length);
-        cout << "seq   : \"" << seq << "\"\n";
-        cout << "seqRev: \"" << seqRev << "\"\n";
+        /*cout << "seq   : \"" << seq << "\"\n";
+        cout << "seqRev: \"" << seqRev << "\"\n";*/
     }
     
     uint64_t j = 0;
@@ -576,14 +577,43 @@ void addMinHashes(MinHashHeap & minHashHeap, char * seq, uint64_t length, const 
         //cout << "\ni = " << i << "\n";
         //cout << "kmerfwd: " << kmer_fwd << "\n";
         //cout << "kmerrev: " << kmer_rev << "\n";
-        cout << "\nkmer   : ";
+
+        /*cout << "\nkmer   : ";
         for (int k = 0; k < kmerSize; ++k)
             cout << kmer[k];
-        cout << "\n";
+        cout << "\n";*/
         
-        hash_u hash = getHash(kmer, kmerSize, parameters.seed, parameters.use64);
-        cout << "hash 64: " << hash.hash64 << "\n";
+        //hash_u hash = getHash(kmer, kmerSize, parameters.seed, parameters.use64);
+
+        std::string realKmer{kmer};
+        realKmer = realKmer.substr(0, kmerSize);
+
+        std::vector<std::string> factors;
+        factors = call_factorizations("icfl", realKmer);
+/*
+        for (std::vector<std::string>::iterator it = factors.begin(); it != factors.end(); ++it) {
+            std::cout << " -> " << *it << "\n";
+        }
+*/
+
+        //cout << "kmer = "<< realKmer << "\"\n factors :\n";
+
+        auto it = factors.begin();
+        std::string bigger = *it;
+        ++it;
+        while (it != factors.end()) {
+            if ((*it).length() > bigger.length())
+                bigger = *it;
+            ++it;
+        }
         
+        //hash_u hash;
+        //hash.hash32 = (hash32_t) bigger.length();
+        //hash.hash64 = (hash64_t) bigger.length();
+
+        hash_u hash = getHash(bigger.c_str(), bigger.length(), parameters.seed, parameters.use64);
+        //cout << "hash 64: " << hash.hash64 << " (" << bigger << ")\n";
+
 		minHashHeap.tryInsert(hash);
     }
     
